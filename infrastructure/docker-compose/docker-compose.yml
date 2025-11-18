@@ -14,6 +14,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-crm_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_INITDB_ARGS: "-E UTF8"
+      POSTGRES_REPLICATION_USER: replicator
+      POSTGRES_REPLICATION_PASSWORD: replicator_password
+    command: |
+      postgres
+      -c wal_level=replica
+      -c max_wal_senders=3
+      -c max_replication_slots=3
     volumes:
       - postgres_master_data:/var/lib/postgresql/data
       - ../../database/init:/docker-entrypoint-initdb.d
@@ -23,6 +30,218 @@ services:
       - crm-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL Slave (Read Replica)
+  postgres-slave:
+    image: postgres:16-alpine
+    container_name: crm-postgres-slave
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-crm_db}
+      POSTGRES_USER: ${POSTGRES_USER:-crm_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      PGUSER: ${POSTGRES_USER:-crm_user}
+    depends_on:
+      - postgres-master
+    ports:
+      - "5433:5432"
+    networks:
+      - crm-network
+    volumes:
+      - postgres_slave_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB Primary
+  mongodb-primary:
+    image: mongo:7.0
+    container_name: crm-mongodb-primary
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER:-crm_user}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-password}
+      MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:-crm_db}
+    command: mongod --replSet rs0 --bind_ip_all
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_primary_data:/data/db
+      - ../../database/mongodb/init:/docker-entrypoint-initdb.d
+    networks:
+      - crm-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB Secondary 1
+  mongodb-secondary1:
+    image: mongo:7.0
+    container_name: crm-mongodb-secondary1
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER:-crm_user}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-password}
+    command: mongod --replSet rs0 --bind_ip_all
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb_secondary1_data:/data/db
+    networks:
+      - crm-network
+    depends_on:
+      - mongodb-primary
+
+  # MongoDB Secondary 2
+  mongodb-secondary2:
+    image: mongo:7.0
+    container_name: crm-mongodb-secondary2
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER:-crm_user}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-password}
+    command: mongod --replSet rs0 --bind_ip_all
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongodb_secondary2_data:/data/db
+    networks:
+      - crm-network
+    depends_on:
+      - mongodb-primary
+
+  # Cassandra Node 1
+  cassandra-1:
+    image: cassandra:4.1
+    container_name: crm-cassandra-1
+    environment:
+      CASSANDRA_CLUSTER_NAME: crm-cluster
+      CASSANDRA_DC: datacenter1
+      CASSANDRA_RACK: rack1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      CASSANDRA_NUM_TOKENS: 256
+      HEAP_NEWSIZE: 128M
+      MAX_HEAP_SIZE: 2G
+    ports:
+      - "9042:9042"
+      - "9160:9160"
+    volumes:
+      - cassandra_1_data:/var/lib/cassandra
+      - ../../database/cassandra/init:/docker-entrypoint-initdb.d
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe cluster'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Cassandra Node 2
+  cassandra-2:
+    image: cassandra:4.1
+    container_name: crm-cassandra-2
+    environment:
+      CASSANDRA_CLUSTER_NAME: crm-cluster
+      CASSANDRA_DC: datacenter1
+      CASSANDRA_RACK: rack1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      CASSANDRA_SEEDS: cassandra-1
+      HEAP_NEWSIZE: 128M
+      MAX_HEAP_SIZE: 2G
+    ports:
+      - "9043:9042"
+    volumes:
+      - cassandra_2_data:/var/lib/cassandra
+    networks:
+      - crm-network
+    depends_on:
+      - cassandra-1
+
+  # Cassandra Node 3
+  cassandra-3:
+    image: cassandra:4.1
+    container_name: crm-cassandra-3
+    environment:
+      CASSANDRA_CLUSTER_NAME: crm-cluster
+      CASSANDRA_DC: datacenter1
+      CASSANDRA_RACK: rack1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      CASSANDRA_SEEDS: cassandra-1
+      HEAP_NEWSIZE: 128M
+      MAX_HEAP_SIZE: 2G
+    ports:
+      - "9044:9042"
+    volumes:
+      - cassandra_3_data:/var/lib/cassandra
+    networks:
+      - crm-network
+    depends_on:
+      - cassandra-1
+
+  # MySQL 8.0
+  mysql:
+    image: mysql:8.0
+    container_name: crm-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-crm_notifications}
+      MYSQL_USER: ${MYSQL_USER:-crm_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
+    command: --default-authentication-plugin=mysql_native_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../../database/mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$$MYSQL_USER", "-p$$MYSQL_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MariaDB 10.6
+  mariadb:
+    image: mariadb:10.6
+    container_name: crm-mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root_password}
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-crm_integrations}
+      MARIADB_USER: ${MARIADB_USER:-crm_user}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-password}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ../../database/mariadb/init:/docker-entrypoint-initdb.d
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$$MARIADB_USER", "-p$$MARIADB_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # CouchDB 3.2
+  couchdb:
+    image: couchdb:3.2
+    container_name: crm-couchdb
+    environment:
+      COUCHDB_USER: ${COUCHDB_USER:-admin}
+      COUCHDB_PASSWORD: ${COUCHDB_PASSWORD:-password}
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+      - ../../database/couchdb/init:/docker-entrypoint-initdb.d
+    networks:
+      - crm-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/_up"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -388,12 +607,39 @@ networks:
 # ==========================================
 
 volumes:
+  # PostgreSQL
   postgres_master_data:
+  postgres_slave_data:
+
+  # MongoDB
+  mongodb_primary_data:
+  mongodb_secondary1_data:
+  mongodb_secondary2_data:
+
+  # Cassandra
+  cassandra_1_data:
+  cassandra_2_data:
+  cassandra_3_data:
+
+  # MySQL
+  mysql_data:
+
+  # MariaDB
+  mariadb_data:
+
+  # CouchDB
+  couchdb_data:
+
+  # Redis
   redis_data:
+
+  # Messaging
   rabbitmq_data:
   zookeeper_data:
   zookeeper_logs:
   kafka_data:
+
+  # Monitoring
   elasticsearch_data:
   prometheus_data:
   grafana_data:

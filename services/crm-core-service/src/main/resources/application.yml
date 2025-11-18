@@ -35,6 +35,28 @@ spring:
     locations: classpath:db/migration
 
   data:
+    # MongoDB Configuration (Customer Profiles)
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/crm_db}
+      database: ${MONGODB_DATABASE:crm_db}
+      auto-index-creation: true
+
+    # Cassandra Configuration (Event Logs)
+    cassandra:
+      keyspace-name: ${CASSANDRA_KEYSPACE:crm_keyspace}
+      contact-points: ${CASSANDRA_CONTACT_POINTS:localhost}
+      port: ${CASSANDRA_PORT:9042}
+      local-datacenter: ${CASSANDRA_DATACENTER:datacenter1}
+      username: ${CASSANDRA_USERNAME:cassandra}
+      password: ${CASSANDRA_PASSWORD:cassandra}
+      schema-action: create-if-not-exists
+      request:
+        timeout: 10s
+      connection:
+        connect-timeout: 10s
+        init-query-timeout: 10s
+
+    # Redis Configuration
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
