@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crm-config
+  namespace: crm-system
+data:
+  # Database
+  POSTGRES_HOST: "postgres-service"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "crm_db"
+
+  # Redis
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+
+  # RabbitMQ
+  RABBITMQ_HOST: "rabbitmq-service"
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_VHOST: "/crm"
+
+  # Kafka
+  KAFKA_BROKERS: "kafka-service:9092"
+  KAFKA_GROUP_ID: "crm-services"
+
+  # Elasticsearch
+  ELASTICSEARCH_HOST: "http://elasticsearch-service:9200"
+
+  # JWT
+  JWT_ISSUER: "crm-auth-service"
+  JWT_AUDIENCE: "crm-api"
+  JWT_EXPIRATION_MINUTES: "60"
+
+  # Environment
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "info"

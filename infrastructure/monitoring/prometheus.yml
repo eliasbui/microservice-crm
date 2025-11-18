@@ -1,0 +1,98 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'crm-cluster'
+    environment: 'development'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "alert_rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Auth Service
+  - job_name: 'auth-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['auth-service:5001']
+        labels:
+          service: 'auth'
+          language: 'csharp'
+
+  # CRM Core Service
+  - job_name: 'crm-core-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['crm-core-service:8081']
+        labels:
+          service: 'crm-core'
+          language: 'java'
+
+  # Chat & AI Service
+  - job_name: 'chat-ai-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['chat-ai-service:8082']
+        labels:
+          service: 'chat-ai'
+          language: 'golang'
+
+  # Automation Service
+  - job_name: 'automation-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['automation-service:8083']
+        labels:
+          service: 'automation'
+          language: 'rust'
+
+  # Notification Service
+  - job_name: 'notification-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['notification-service:8084']
+        labels:
+          service: 'notification'
+          language: 'bun'
+
+  # Integration Service
+  - job_name: 'integration-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['integration-service:8086']
+        labels:
+          service: 'integration'
+          language: 'golang'
+
+  # PostgreSQL
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: 'postgres'
+
+  # Redis
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+
+  # RabbitMQ
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+        labels:
+          service: 'rabbitmq'

@@ -1,0 +1,28 @@
+[package]
+name = "automation-service"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4.5"
+actix-rt = "2.9"
+tokio = { version = "1.36", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres"] }
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+lapin = "2.3" # RabbitMQ client
+rdkafka = "0.36" # Kafka client
+env_logger = "0.11"
+log = "0.4"
+dotenv = "0.15"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.7", features = ["v4", "serde"] }
+anyhow = "1.0"
+thiserror = "1.0"
+prometheus = "0.13"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

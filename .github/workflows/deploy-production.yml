@@ -1,0 +1,120 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        service:
+          - name: auth-service
+            context: ./services/auth-service
+          - name: crm-core-service
+            context: ./services/crm-core-service
+          - name: chat-ai-service
+            context: ./services/chat-ai-service
+          - name: automation-service
+            context: ./services/automation-service
+          - name: notification-service
+            context: ./services/notification-service
+          - name: integration-service
+            context: ./services/integration-service
+          - name: frontend
+            context: ./frontend/crm-web-app
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.service.name }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-to-kubernetes:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Set Kubernetes context
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Deploy to Kubernetes
+        run: |
+          # Update image tags in deployments
+          export IMAGE_TAG=${{ github.sha }}
+
+          # Apply Kubernetes manifests
+          kubectl apply -f infrastructure/kubernetes/namespace.yaml
+          kubectl apply -f infrastructure/kubernetes/configmap.yaml
+          kubectl apply -f infrastructure/kubernetes/secrets.yaml
+          kubectl apply -f infrastructure/kubernetes/deployments/
+
+          # Wait for rollout
+          kubectl rollout status deployment/auth-service -n crm-system
+          kubectl rollout status deployment/crm-core-service -n crm-system
+
+          echo "Deployment completed successfully!"
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n crm-system
+          kubectl get services -n crm-system
+
+  notify:
+    needs: deploy-to-kubernetes
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Send notification
+        run: |
+          echo "Deployment status: ${{ needs.deploy-to-kubernetes.result }}"
+          # Add Slack/Discord/Email notification here if needed

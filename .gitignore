@@ -1,0 +1,110 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Secrets
+secrets/
+*.key
+*.pem
+*.cert
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
+out/
+target/
+bin/
+obj/
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Language specific
+
+# .NET
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+[Dd]ebug/
+[Rr]elease/
+*.dll
+*.exe
+*.pdb
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+.gradle/
+gradle-app.setting
+
+# Go
+*.exe
+*.test
+*.prof
+vendor/
+
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+
+# Node/BUN
+node_modules/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# Kubernetes
+*.kubeconfig
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Monitoring
+prometheus_data/
+grafana_data/
+elasticsearch_data/
+
+# Temporary
+tmp/
+temp/
+*.tmp
