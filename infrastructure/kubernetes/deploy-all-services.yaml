@@ -1,0 +1,208 @@
+---
+# Master Kubernetes Deployment for All 30 Microservices
+# Apply with: kubectl apply -f deploy-all-services.yaml
+
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crm-system
+---
+# ConfigMap for all services
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: services-config
+  namespace: crm-system
+data:
+  POSTGRES_HOST: "postgres-master"
+  POSTGRES_PORT: "5432"
+  MONGODB_URI: "mongodb://mongodb-primary:27017,mongodb-secondary1:27017,mongodb-secondary2:27017/crm_db?replicaSet=rs0"
+  CASSANDRA_CONTACT_POINTS: "cassandra-1,cassandra-2,cassandra-3"
+  CASSANDRA_PORT: "9042"
+  MYSQL_HOST: "mysql"
+  MYSQL_PORT: "3306"
+  MARIADB_HOST: "mariadb"
+  MARIADB_PORT: "3307"
+  COUCHDB_URL: "http://couchdb:5984"
+  REDIS_HOST: "redis-master"
+  REDIS_PORT: "6379"
+  RABBITMQ_HOST: "rabbitmq"
+  RABBITMQ_PORT: "5672"
+  KAFKA_BROKERS: "kafka:9092"
+  CONSUL_HOST: "consul"
+  CONSUL_PORT: "8500"
+---
+# Deployment Template Generator
+# Use this template to generate deployments for each service
+
+# Example: Service 01 - User Auth Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-auth-service
+  namespace: crm-system
+  labels:
+    app: user-auth-service
+    tier: core
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-auth-service
+  template:
+    metadata:
+      labels:
+        app: user-auth-service
+    spec:
+      containers:
+      - name: user-auth-service
+        image: ghcr.io/your-org/user-auth-service:latest
+        ports:
+        - containerPort: 5001
+        envFrom:
+        - configMapRef:
+            name: services-config
+        - secretRef:
+            name: crm-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5001
+          initialDelaySeconds: 10
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-auth-service
+  namespace: crm-system
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5001
+    targetPort: 5001
+  selector:
+    app: user-auth-service
+---
+# HPA for User Auth Service
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: user-auth-service-hpa
+  namespace: crm-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-auth-service
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+---
+# Repeat above pattern for all 30 services
+# Service naming convention: {service-name}-service
+# Port convention: 5001-5025 for application services
+
+# Infrastructure Services
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul
+  namespace: crm-system
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8500
+    name: http
+  - port: 8600
+    name: dns
+    protocol: UDP
+  selector:
+    app: consul
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consul
+  namespace: crm-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: consul
+  template:
+    metadata:
+      labels:
+        app: consul
+    spec:
+      containers:
+      - name: consul
+        image: consul:1.17
+        args:
+        - agent
+        - -server
+        - -ui
+        - -bootstrap-expect=1
+        - -client=0.0.0.0
+        ports:
+        - containerPort: 8500
+        - containerPort: 8600
+          protocol: UDP
+---
+# API Gateway Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-gateway
+  namespace: crm-system
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  rules:
+  - host: api.crm.yourdomain.com
+    http:
+      paths:
+      - path: /api/v1/auth(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: user-auth-service
+            port:
+              number: 5001
+      - path: /api/v1/customers(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: customer-service
+            port:
+              number: 5002
+      - path: /api/v1/contacts(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: contact-service
+            port:
+              number: 5003
+      # Add routes for all 30 services...

@@ -1,0 +1,447 @@
+version: '3.8'
+
+# Complete 30 Microservices Docker Compose Configuration
+# This file defines all services for local development and testing
+
+services:
+  # ==========================================
+  # CORE DOMAIN SERVICES (1-8)
+  # ==========================================
+
+  01-user-auth-service:
+    build: ../../services/01-user-auth-service
+    container_name: crm-user-auth-service
+    ports:
+      - "5001:5001"
+    environment:
+      SERVICE_PORT: 5001
+      POSTGRES_HOST: postgres-master
+      POSTGRES_DB: crm_db
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: redis-master
+    depends_on:
+      - postgres-master
+      - redis-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  02-customer-service:
+    build: ../../services/02-customer-service
+    container_name: crm-customer-service
+    ports:
+      - "5002:5002"
+    environment:
+      SERVICE_PORT: 5002
+      POSTGRES_HOST: postgres-master
+      MONGODB_URI: mongodb://mongodb-primary:27017/crm_db
+    depends_on:
+      - postgres-master
+      - mongodb-primary
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  03-contact-service:
+    build: ../../services/03-contact-service
+    container_name: crm-contact-service
+    ports:
+      - "5003:5003"
+    environment:
+      SERVICE_PORT: 5003
+      POSTGRES_HOST: postgres-master
+    depends_on:
+      - postgres-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  04-account-service:
+    build: ../../services/04-account-service
+    container_name: crm-account-service
+    ports:
+      - "5004:5004"
+    environment:
+      SERVICE_PORT: 5004
+      POSTGRES_HOST: postgres-master
+    depends_on:
+      - postgres-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  05-opportunity-service:
+    build: ../../services/05-opportunity-service
+    container_name: crm-opportunity-service
+    ports:
+      - "5005:5005"
+    environment:
+      SERVICE_PORT: 5005
+      POSTGRES_HOST: postgres-master
+    depends_on:
+      - postgres-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  06-deal-service:
+    build: ../../services/06-deal-service
+    container_name: crm-deal-service
+    ports:
+      - "5006:5006"
+    environment:
+      SERVICE_PORT: 5006
+      POSTGRES_HOST: postgres-master
+    depends_on:
+      - postgres-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  07-activity-service:
+    build: ../../services/07-activity-service
+    container_name: crm-activity-service
+    ports:
+      - "5007:5007"
+    environment:
+      SERVICE_PORT: 5007
+      CASSANDRA_CONTACT_POINTS: cassandra-1
+    depends_on:
+      - cassandra-1
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  08-interaction-service:
+    build: ../../services/08-interaction-service
+    container_name: crm-interaction-service
+    ports:
+      - "5008:5008"
+    environment:
+      SERVICE_PORT: 5008
+      POSTGRES_HOST: postgres-master
+    depends_on:
+      - postgres-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  # ==========================================
+  # COMMUNICATION SERVICES (9-13)
+  # ==========================================
+
+  09-chat-service:
+    build: ../../services/09-chat-service
+    container_name: crm-chat-service
+    ports:
+      - "5009:5009"
+    environment:
+      SERVICE_PORT: 5009
+      MONGODB_URI: mongodb://mongodb-primary:27017/crm_db
+      REDIS_HOST: redis-master
+    depends_on:
+      - mongodb-primary
+      - redis-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  10-ai-service:
+    build: ../../services/10-ai-service
+    container_name: crm-ai-service
+    ports:
+      - "5010:5010"
+    environment:
+      SERVICE_PORT: 5010
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      REDIS_HOST: redis-master
+    depends_on:
+      - redis-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  11-email-service:
+    build: ../../services/11-email-service
+    container_name: crm-email-service
+    ports:
+      - "5011:5011"
+    environment:
+      SERVICE_PORT: 5011
+      MYSQL_HOST: mysql
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+    depends_on:
+      - mysql
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  12-sms-service:
+    build: ../../services/12-sms-service
+    container_name: crm-sms-service
+    ports:
+      - "5012:5012"
+    environment:
+      SERVICE_PORT: 5012
+      MYSQL_HOST: mysql
+    depends_on:
+      - mysql
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  13-notification-service:
+    build: ../../services/13-notification-service
+    container_name: crm-notification-service
+    ports:
+      - "5013:5013"
+    environment:
+      SERVICE_PORT: 5013
+      MYSQL_HOST: mysql
+      MONGODB_URI: mongodb://mongodb-primary:27017/crm_db
+    depends_on:
+      - mysql
+      - mongodb-primary
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  # ==========================================
+  # SALES & MARKETING SERVICES (14-18)
+  # ==========================================
+
+  14-sales-pipeline-service:
+    build: ../../services/14-sales-pipeline-service
+    container_name: crm-sales-pipeline-service
+    ports:
+      - "5014:5014"
+    environment:
+      SERVICE_PORT: 5014
+      POSTGRES_HOST: postgres-master
+    depends_on:
+      - postgres-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  15-proposal-service:
+    build: ../../services/15-proposal-service
+    container_name: crm-proposal-service
+    ports:
+      - "5015:5015"
+    environment:
+      SERVICE_PORT: 5015
+      MONGODB_URI: mongodb://mongodb-primary:27017/crm_db
+    depends_on:
+      - mongodb-primary
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  16-quote-service:
+    build: ../../services/16-quote-service
+    container_name: crm-quote-service
+    ports:
+      - "5016:5016"
+    environment:
+      SERVICE_PORT: 5016
+      POSTGRES_HOST: postgres-master
+    depends_on:
+      - postgres-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  17-campaign-service:
+    build: ../../services/17-campaign-service
+    container_name: crm-campaign-service
+    ports:
+      - "5017:5017"
+    environment:
+      SERVICE_PORT: 5017
+      POSTGRES_HOST: postgres-master
+    depends_on:
+      - postgres-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  18-lead-service:
+    build: ../../services/18-lead-service
+    container_name: crm-lead-service
+    ports:
+      - "5018:5018"
+    environment:
+      SERVICE_PORT: 5018
+      MONGODB_URI: mongodb://mongodb-primary:27017/crm_db
+    depends_on:
+      - mongodb-primary
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  # ==========================================
+  # ANALYTICS SERVICES (19-21)
+  # ==========================================
+
+  19-analytics-service:
+    build: ../../services/19-analytics-service
+    container_name: crm-analytics-service
+    ports:
+      - "5019:5019"
+    environment:
+      SERVICE_PORT: 5019
+      CASSANDRA_CONTACT_POINTS: cassandra-1
+      POSTGRES_HOST: postgres-master
+    depends_on:
+      - cassandra-1
+      - postgres-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  20-reporting-service:
+    build: ../../services/20-reporting-service
+    container_name: crm-reporting-service
+    ports:
+      - "5020:5020"
+    environment:
+      SERVICE_PORT: 5020
+      POSTGRES_HOST: postgres-master
+    depends_on:
+      - postgres-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  21-dashboard-service:
+    build: ../../services/21-dashboard-service
+    container_name: crm-dashboard-service
+    ports:
+      - "5021:5021"
+    environment:
+      SERVICE_PORT: 5021
+      MONGODB_URI: mongodb://mongodb-primary:27017/crm_db
+      REDIS_HOST: redis-master
+    depends_on:
+      - mongodb-primary
+      - redis-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  # ==========================================
+  # INTEGRATION & ADMIN SERVICES (22-25)
+  # ==========================================
+
+  22-integration-service:
+    build: ../../services/22-integration-service
+    container_name: crm-integration-service
+    ports:
+      - "5022:5022"
+    environment:
+      SERVICE_PORT: 5022
+      POSTGRES_HOST: postgres-master
+      COUCHDB_URL: http://couchdb:5984
+      MARIADB_HOST: mariadb
+    depends_on:
+      - postgres-master
+      - couchdb
+      - mariadb
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  23-configuration-service:
+    build: ../../services/23-configuration-service
+    container_name: crm-configuration-service
+    ports:
+      - "5023:5023"
+    environment:
+      SERVICE_PORT: 5023
+      COUCHDB_URL: http://couchdb:5984
+    depends_on:
+      - couchdb
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  24-audit-service:
+    build: ../../services/24-audit-service
+    container_name: crm-audit-service
+    ports:
+      - "5024:5024"
+    environment:
+      SERVICE_PORT: 5024
+      POSTGRES_HOST: postgres-master
+    depends_on:
+      - postgres-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  25-admin-service:
+    build: ../../services/25-admin-service
+    container_name: crm-admin-service
+    ports:
+      - "5025:5025"
+    environment:
+      SERVICE_PORT: 5025
+      POSTGRES_HOST: postgres-master
+    depends_on:
+      - postgres-master
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  # ==========================================
+  # INFRASTRUCTURE SERVICES (26-30)
+  # ==========================================
+
+  26-api-gateway:
+    build: ../../infrastructure/gateway
+    container_name: crm-api-gateway
+    ports:
+      - "8080:80"
+    depends_on:
+      - 01-user-auth-service
+      - 02-customer-service
+      - 03-contact-service
+      - 04-account-service
+      - 05-opportunity-service
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  27-service-discovery:
+    image: consul:1.17
+    container_name: crm-service-discovery
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+    command: agent -server -ui -bootstrap-expect=1 -client=0.0.0.0
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  28-config-server:
+    image: hyness/spring-cloud-config-server:latest
+    container_name: crm-config-server
+    ports:
+      - "8888:8888"
+    environment:
+      SPRING_CLOUD_CONFIG_SERVER_GIT_URI: https://github.com/your-org/config-repo
+    networks:
+      - crm-network
+    restart: unless-stopped
+
+  # 29-message-bus (RabbitMQ) - Already defined in main compose
+  # 30-cache-service (Redis) - Already defined in main compose
+
+# Import existing database services from main docker-compose.yml
+# Networks and volumes are defined there
+
+networks:
+  crm-network:
+    external: true
